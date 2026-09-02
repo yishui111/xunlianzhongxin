@@ -89,3 +89,10 @@
 - 活文档：重复踩坑就补规则；每次优化/修复后同步更新 `部署方案.md`。
 
 - RVC 基座模型（f0G48k.pth / f0D48k.pth）已就位在项目内 `rvc\pretrained\`；下载源为 hf-mirror 的 lj1995/VoiceConversionWebUI（pretrained_v2），页面按钮可一键下载。
+---
+### 关键点（2026-09-02 上传整理补充）
+- train_service = 自研 FastAPI 训练中心（端口 8050，TRAIN_PORT 可覆盖）：RVC 换声 + GPT-SoVITS 文字驱动双模式，多角色队列/ASR 标字/按显存自动 batch
+- 引擎不入库（gptsovits/、rvc/ 第三方，附官方地址）；DEPLOY.md 方式B 含 3 处 GPT-SoVITS 适配补丁说明
+- 交付模型/（已训真人音色交付包）、ziliao/、output/、work/ 一律不入库；复制目标在兄弟项目（换声应用 rvc\assets / tts 应用 tts_service\models）
+- tests 自包含已跑通（test_publish_clean 5项OK、test_ref_fix 155s→8s）；README/DEPLOY 中 your-github-username 已替换 yishui111
+- 三个中文名 bat 内容为纯 ASCII，勿加中文/勿改 BOM/LF
