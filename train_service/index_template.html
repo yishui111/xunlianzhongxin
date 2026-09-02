@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:"Microsoft YaHei",sans-serif;max-width:1000px;margin:0 auto;padding:20px 16px;background:#f4f4f8;color:#1f2430}
+h1{font-size:24px;border-bottom:2px solid #6d28d9;padding-bottom:10px;margin-top:0}
+h2{font-size:17px;margin:0 0 12px;color:#4c1d95}
+.card{background:#fff;border:1px solid #e2e2ea;border-radius:12px;padding:18px;margin:16px 0;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.desc{background:#f5f3ff;border:1px solid #ddd;border-radius:10px;padding:12px 16px;margin:12px 0;font-size:14px;line-height:1.9}
+label{display:block;margin:10px 0 4px;font-weight:600;font-size:14px}
+input,select{width:100%;max-width:420px;padding:8px;border:1px solid #ccc;border-radius:8px;font-size:14px}
+button{background:#6d28d9;color:#fff;border:none;padding:9px 20px;border-radius:8px;font-size:14px;cursor:pointer;margin:8px 8px 0 0}
+button.sec{background:#0e7490}
+button.warn{background:#b45309}
+button.danger{background:#b91c1c}
+button:disabled{background:#aaa;cursor:not-allowed}
+.btns{margin-top:12px}
+pre{background:#111;color:#9f9;padding:12px;border-radius:8px;height:320px;overflow:auto;font-size:12px;line-height:1.5}
+.ok{color:#15803d}.err{color:#b91c1c}.warn-c{color:#b45309}
+table{border-collapse:collapse;width:100%;font-size:13px;margin-top:10px}
+td,th{border:1px solid #ddd;padding:6px 10px;text-align:left}
+th{background:#f5f3ff}
+.tag{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600}
+.tag.waiting{background:#fef3c7;color:#92400e}
+.tag.running{background:#dbeafe;color:#1e40af}
+.tag.done{background:#dcfce7;color:#166534}
+.tag.failed{background:#fee2e2;color:#991b1b}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:800px){.grid2{grid-template-columns:1fr}}
+.hint{font-size:12px;color:#666;margin-top:4px}
+</style>
+</head>
+<body>
+<h1>🎓 __TITLE__</h1>
+<div class="desc">
+  <b>训练说明：</b><br>
+  __DESC__
+  <b>数据集：</b>直接点"选择训练文件夹"挑音频文件夹（wav/mp3/m4a/flac/aac/ogg，建议 5~30 分钟，长音频自动切片）；也可以填服务器路径；或放进
+  <code>ziliao\xunlianshuju\&lt;角色名&gt;\</code>
+</div>
+
+<!-- 任务队列 -->
+<div class="card">
+  <h2>📋 任务队列（多角色排队，自动依次训练）</h2>
+  <div class="grid2">
+    <div>
+      <label>角色名（英文/数字/拼音，如 juese_a）</label>
+      <input id="qName" placeholder="例如 juese_a / juese_b">
+      <label>训练轮数 epochs（自动按目标步数补足，填 30 即可）</label>
+      <input id="qEpochs" type="number" value="30">
+    </div>
+    <div>
+      <label>素材来源</label>
+      <select id="qSrcType">
+        <option value="default">默认数据集目录（ziliao\xunlianshuju\角色名\）</option>
+        <option value="dir">服务器文件夹路径</option>
+        <option value="upload">上传本机文件夹</option>
+      </select>
+      <input type="file" id="qFolder" webkitdirectory multiple style="display:none">
+      <input id="qDir" placeholder="例如 盘符:\素材\角色声音（如 F:\素材\角色声音）" style="display:none">
+      <div id="qFolderInfo" class="hint"></div>
+      <label style="margin-top:10px"><input type="checkbox" id="qReview" style="width:auto"> 需要标字校对（<b>方言素材务必勾选</b>，训练到标字环节会停下等你核对修改）</label>
+    </div>
+  </div>
+  <div class="btns">
+    <button id="btnQueueAdd">➕ 加入队列</button>
+    <button class="sec" id="btnAllDatasets">📂 一键加入全部数据集目录</button>
+    <button class="warn" id="btnQueueClear">🗑 清空等待队列</button>
+  </div>
+  <div id="queueMsg"></div>
+  <table id="queueTable">
+    <thead><tr><th style="width:24%">角色</th><th style="width:14%">状态</th><th>说明 / 轮数</th></tr></thead>
+    <tbody><tr><td colspan="3" style="color:#999">队列为空</td></tr></tbody>
+  </table>
+  <div class="hint">把多个角色加入队列后，训练中心会按顺序一个接一个自动训练，全部完成后自动退出释放 GPU。</div>
+</div>
+
+<!-- 标字校对 -->
+<div class="card" id="reviewCard" style="display:none;border:2px solid #b45309">
+  <h2>📝 标字校对 <span class="hint">（识别文字必须和录音说的完全一致，否则训练出来会读错/漏字）</span></h2>
+  <div class="hint" style="margin-bottom:8px">
+    · <b>普通话</b>：SenseVoice 识别通常较准，可点"跳过校对"<br>
+    · <b>方言（河北话/四川话/粤语等）</b>：识别容易出错，<b>务必逐句核对修改</b>后点"确认并继续训练"<br>
+    · 修改方法：点文本框直接改字；某段确实听不清/没内容，清空文字即可（该段将不参与训练）
+  </div>
+  <div id="reviewName" style="font-weight:600;color:#92400e"></div>
+  <div id="reviewStats" class="hint"></div>
+  <div style="max-height:420px;overflow:auto;border:1px solid #e2e2ea;border-radius:8px;margin-top:8px">
+    <table>
+      <thead><tr><th style="width:26%">切片文件</th><th>识别文字（可编辑）</th></tr></thead>
+      <tbody id="reviewBody"></tbody>
+    </table>
+  </div>
+  <div class="btns">
+    <button id="btnReviewSubmit">✅ 确认并继续训练</button>
+    <button class="sec" id="btnReviewSkip">⏭ 跳过校对直接训练</button>
+  </div>
+  <div id="reviewMsg"></div>
+</div>
+
+<!-- 立即训练 -->
+<div class="card">
+  <h2>⚡ 立即训练（单个角色，马上开始）</h2>
+  <div class="grid2">
+    <div>
+      <label>角色名</label>
+      <input id="name" placeholder="例如 juese_a / juese_b">
+      <label>训练引擎（本模式固定）</label>
+      __ENGINE_HTML__
+      <label><input type="checkbox" id="clean" checked style="width:auto"> 素材已用 8070 前置处理（本服务不再内置去BGM/去混响）</label>
+      <label><input type="checkbox" id="reviewChk" style="width:auto"> 需要标字校对（<b>方言素材务必勾选</b>，训练到标字环节会停下等你核对修改）</label>
+      <label>训练轮数 epochs</label>
+      <input id="epochs" type="number" value="30">
+    </div>
+    <div>
+      <label>选择训练文件夹（上传本机文件夹）</label>
+      <input type="file" id="folder" webkitdirectory multiple style="width:100%">
+      <div id="folderInfo" class="hint"></div>
+      <label>或填服务器上的文件夹路径（不用上传）</label>
+      <input id="dirpath" placeholder="例如 盘符:\素材\角色声音（如 F:\素材\角色声音）">
+      <button class="sec" id="btnEst">估算训练时长</button>
+      <div id="estInfo" class="ok hint"></div>
+    </div>
+  </div>
+  <div class="btns">
+    <button id="btn">🚀 开始训练</button>
+    <button class="sec" id="btnEnv">环境检查</button>
+    <button class="sec" id="btnBase">__BASE_BTN__</button>
+  </div>
+  <div id="msg"></div>
+</div>
+
+<!-- 训练日志 -->
+<div class="card">
+  <h2>📜 训练日志 <button class="sec" style="float:right" onclick="poll()">刷新</button></h2>
+  <pre id="log">还没有任务</pre>
+</div>
+
+<!-- 环境检查 -->
+<div class="card">
+  <h2>🖥️ 环境检查</h2>
+  <pre id="env" style="height:140px"></pre>
+</div>
+
+<script>
+let lastCount = -1;
+
+/* ---------- 训练日志轮询 ---------- */
+async function poll(){
+  try{
+    const r = await fetch('/api/status'); const j = await r.json();
+    const lines = j.log.slice(-400);
+    const el = document.getElementById('log');
+    if (lines.length !== lastCount){ el.textContent = lines.join('\n'); lastCount = lines.length; el.scrollTop = el.scrollHeight; }
+    const msg = document.getElementById('msg');
+    if (j.running){ msg.className='ok'; msg.textContent = '训练中：' + (j.step||''); document.getElementById('btn').disabled = true; }
+    else { document.getElementById('btn').disabled = false;
+      if (j.ok) msg.className='ok', msg.textContent='✔ 训练完成';
+      else if (j.error==='已手动停止') msg.className='ok', msg.textContent='⏹ 训练已手动停止（模型未发布）';
+      else if (j.error) msg.className='err', msg.textContent='✘ 失败：'+j.error; }
+  }catch(e){}
+}
+
+/* ---------- 任务队列 ---------- */
+async function pollQueue(){
+  try{
+    const r = await fetch('/api/queue_status'); const j = await r.json();
+    const tbody = document.querySelector('#queueTable tbody');
+    const rows = [];
+    if (j.current) rows.push('<tr><td><b>'+j.current.name+'</b></td><td><span class="tag running">训练中</span></td><td>'+j.current.step+'</td><td><button class="danger" style="padding:3px 10px;margin:2px" onclick="qStop()" title="停止当前训练（杀进程，模型不发布）">⏹ 停止</button></td></tr>');
+    (j.waiting||[]).forEach((t,i)=>{
+      rows.push('<tr><td>'+t.name+'</td><td><span class="tag waiting">排队中</span></td><td>epochs='+t.epochs+(t.raw_dir?'（指定路径）':'')+'</td>'+
+        '<td><button class="sec" style="padding:3px 10px;margin:2px" onclick="qMove(\''+t.name+'\','+(i-1)+')" title="上移">↑</button> '+
+        '<button class="sec" style="padding:3px 10px;margin:2px" onclick="qMove(\''+t.name+'\','+(i+1)+')" title="下移">↓</button> '+
+        '<button class="danger" style="padding:3px 10px;margin:2px" onclick="qRemove(\''+t.name+'\')" title="从队列删除">🗑</button></td></tr>');
+    });
+    (j.done||[]).slice().reverse().forEach(t=>{
+      const tag = t.status==='done' ? '<span class="tag done">已完成</span>' : t.status==='stopped' ? '<span class="tag">已停止</span>' : '<span class="tag failed">失败</span>';
+      rows.push('<tr><td>'+t.name+'</td><td>'+tag+'</td><td>'+(t.result||'').substring(0,60)+'</td>'+
+        '<td><button class="danger" style="padding:3px 10px;margin:2px" onclick="qRemove(\''+t.name+'\')" title="从列表删除">🗑</button></td></tr>');
+    });
+    tbody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="4" style="color:#999">队列为空</td></tr>';
+  }catch(e){}
+}
+
+/* 队列：调整顺序 / 删除等待任务 */
+async function qMove(name, index){
+  try{
+    await fetch('/api/queue_move', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name, index})});
+  }catch(e){}
+  pollQueue();
+}
+async function qRemove(name){
+  if (!confirm('从队列移除「'+name+'」？（不影响已经生成的交付模型/存档）')) return;
+  try{
+    await fetch('/api/queue_remove', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name})});
+  }catch(e){}
+  pollQueue();
+}
+
+/* 素材来源切换 */
+document.getElementById('qSrcType').addEventListener('change', e=>{
+  const v = e.target.value;
+  document.getElementById('qFolder').style.display = v==='upload' ? '' : 'none';
+  document.getElementById('qDir').style.display = v==='dir' ? '' : 'none';
+});
+document.getElementById('qFolder').addEventListener('change', ()=>{
+  const files = Array.from(document.getElementById('qFolder').files||[]).filter(f=>/[.](wav|mp3|m4a|flac|aac|ogg)$/i.test(f.name));
+  document.getElementById('qFolderInfo').textContent = files.length ? '已选 '+files.length+' 个音频文件' : '该文件夹里没有音频文件';
+});
+
+/* 加入队列 */
+document.getElementById('btnQueueAdd').onclick = async ()=>{
+  const name = document.getElementById('qName').value.trim();
+  const epochs = parseInt(document.getElementById('qEpochs').value)||30;
+  const srcType = document.getElementById('qSrcType').value;
+  const msgEl = document.getElementById('queueMsg');
+  if (!name){ msgEl.className='err'; msgEl.textContent='请先填角色名'; return; }
+  msgEl.className='ok'; msgEl.textContent='正在加入队列…';
+  try{
+    let task = {name, epochs, review: document.getElementById('qReview').checked};
+    if (srcType==='dir'){
+      const dir = document.getElementById('qDir').value.trim();
+      if (!dir){ msgEl.className='err'; msgEl.textContent='请填服务器文件夹路径'; return; }
+      task.dir = dir;
+    } else if (srcType==='upload'){
+      const files = Array.from(document.getElementById('qFolder').files||[]).filter(f=>/[.](wav|mp3|m4a|flac|aac|ogg)$/i.test(f.name));
+      if (!files.length){ msgEl.className='err'; msgEl.textContent='请先选择上传文件夹'; return; }
+      const fd = new FormData();
+      fd.append('name', name); fd.append('epochs', epochs); fd.append('queue', '1');
+      fd.append('review', task.review ? '1' : '0');
+      files.forEach(f=>fd.append('files', f));
+      const up = await (await fetch('/api/train_upload', {method:'POST', body:fd})).json();
+      if (up.detail){ throw new Error(up.detail); }
+      task.dir = up.dir;
+    }
+    const r = await fetch('/api/train_queue', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({tasks:[task]})});
+    const j = await r.json();
+    if (j.detail){ msgEl.className='err'; msgEl.textContent = j.detail; }
+    else { msgEl.className='ok'; msgEl.textContent = j.message; }
+    pollQueue(); setTimeout(poll, 600);
+  }catch(e){ msgEl.className='err'; msgEl.textContent='加入队列失败：'+e.message; }
+};
+
+/* 一键加入全部数据集 */
+document.getElementById('btnAllDatasets').onclick = async ()=>{
+  const msgEl = document.getElementById('queueMsg');
+  try{
+    const r = await fetch('/api/train_all_datasets', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({epochs: parseInt(document.getElementById('qEpochs').value)||30})});
+    const j = await r.json();
+    msgEl.className = j.detail ? 'err' : 'ok';
+    msgEl.textContent = j.detail || j.message;
+    pollQueue(); setTimeout(poll, 600);
+  }catch(e){ msgEl.className='err'; msgEl.textContent='失败：'+e.message; }
+};
+
+/* 停止当前训练任务 */
+async function qStop(){
+  if (!confirm('确定停止当前正在训练的任务？\n（训练进程会被终止，模型不会发布）')) return;
+  try{
+    const r = await fetch('/api/queue_stop', {method:'POST'});
+    const j = await r.json();
+    document.getElementById('queueMsg').className = j.detail ? 'err' : 'ok';
+    document.getElementById('queueMsg').textContent = j.detail || j.message;
+  }catch(e){}
+  setTimeout(pollQueue, 600); setTimeout(poll, 1000);
+}
+
+/* 清空等待队列 */
+document.getElementById('btnQueueClear').onclick = async ()=>{
+  if (!confirm('确定清空所有等待中的队列任务？（正在训练的不受影响）')) return;
+  const r = await fetch('/api/queue_clear', {method:'POST'});
+  const j = await r.json();
+  document.getElementById('queueMsg').className='ok';
+  document.getElementById('queueMsg').textContent = j.message;
+  pollQueue();
+};
+
+/* ---------- 标字校对 ---------- */
+let reviewItems = [];
+async function pollReview(){
+  try{
+    const j = await (await fetch('/api/review_status')).json();
+    const card = document.getElementById('reviewCard');
+    if (!j.pending){ card.style.display='none'; return; }
+    card.style.display='';
+    document.getElementById('reviewName').textContent = '角色：' + j.name + '（标字校对中，训练已暂停等待你确认）';
+    reviewItems = j.items;
+    document.getElementById('reviewStats').textContent = '共 ' + j.items.length + ' 段；修改后点"确认并继续训练"';
+    const tbody = document.getElementById('reviewBody');
+    tbody.innerHTML = j.items.map((it, i)=>{
+      const safe = String(it.text||'').replace(/</g,'&lt;');
+      return '<tr><td style="word-break:break-all">'+it.file+'</td><td><textarea data-i="'+i+'" style="width:100%;min-height:44px;font-size:13px" spellcheck="false">'+safe+'</textarea></td></tr>';
+    }).join('');
+    // 文本变化时同步回 reviewItems
+    tbody.querySelectorAll('textarea').forEach(ta=>{
+      ta.addEventListener('input', ()=>{ reviewItems[parseInt(ta.dataset.i)].text = ta.value; });
+    });
+  }catch(e){}
+}
+document.getElementById('btnReviewSubmit').onclick = async ()=>{
+  const msg = document.getElementById('reviewMsg');
+  msg.className='ok'; msg.textContent='正在提交校对结果…';
+  try{
+    const r = await fetch('/api/review_submit', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({items: reviewItems})});
+    const j = await r.json();
+    msg.className = j.detail ? 'err' : 'ok';
+    msg.textContent = j.detail || j.message;
+    if (!j.detail){ setTimeout(()=>{ document.getElementById('reviewCard').style.display='none'; }, 1500); }
+    setTimeout(poll, 800);
+  }catch(e){ msg.className='err'; msg.textContent='提交失败：'+e.message; }
+};
+document.getElementById('btnReviewSkip').onclick = async ()=>{
+  const msg = document.getElementById('reviewMsg');
+  try{
+    const r = await fetch('/api/review_skip', {method:'POST'});
+    const j = await r.json();
+    msg.className = j.detail ? 'err' : 'ok';
+    msg.textContent = j.detail || j.message;
+    if (!j.detail){ setTimeout(()=>{ document.getElementById('reviewCard').style.display='none'; }, 1500); }
+    setTimeout(poll, 800);
+  }catch(e){ msg.className='err'; msg.textContent='失败：'+e.message; }
+};
+
+/* ---------- 立即训练 ---------- */
+const folderInput = document.getElementById('folder');
+folderInput.addEventListener('change', ()=>{
+  const files = Array.from(folderInput.files || []).filter(f=>/[.](wav|mp3|m4a|flac|aac|ogg)$/i.test(f.name));
+  const totalMB = files.reduce((s,f)=>s+f.size, 0) / 1048576;
+  document.getElementById('folderInfo').textContent = files.length
+    ? '已选 ' + files.length + ' 个音频文件（共 ' + totalMB.toFixed(1) + ' MB）'
+    : '该文件夹里没有音频文件';
+  if (files.length){
+    const folderName = (files[0].webkitRelativePath || files[0].name).split('/')[0];
+    const nm = document.getElementById('name');
+    if (!nm.value) nm.value = folderName.replace(/[^A-Za-z0-9_\u4e00-\u9fff-]/g, '_');
+  }
+});
+document.getElementById('btnEst').onclick = async ()=>{
+  const dir = document.getElementById('dirpath').value.trim();
+  const el = document.getElementById('estInfo');
+  if (!dir){ el.textContent = '请先填服务器上的文件夹路径，再点估算（或选文件夹后直接训练）'; return; }
+  el.textContent = '估算中…';
+  const r = await fetch('/api/estimate', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({dir})});
+  const j = await r.json();
+  if (j.detail){ el.textContent = j.detail; return; }
+  el.textContent = '素材 ' + j.total_min + ' 分钟（' + j.audio_files + ' 个文件）→ 约 ' + j.est_slices +
+    ' 个切片，建议训练 ' + j.need_epochs + ' 轮（' + j.target_steps + ' 步），预计总耗时约 ' +
+    j.est_total_min + ' 分钟';
+};
+document.getElementById('btn').onclick = async ()=>{
+  const files = Array.from(folderInput.files || []).filter(f=>/[.](wav|mp3|m4a|flac|aac|ogg)$/i.test(f.name));
+  const dir = document.getElementById('dirpath').value.trim();
+  const base = {engine: document.getElementById('engine').value,
+    name: document.getElementById('name').value.trim(),
+    clean: document.getElementById('clean').checked,
+    review: document.getElementById('reviewChk').checked,
+    epochs: parseInt(document.getElementById('epochs').value)||30};
+  let r;
+  if (files.length){
+    const fd = new FormData();
+    fd.append('engine', base.engine); fd.append('name', base.name);
+    fd.append('clean', base.clean); fd.append('epochs', base.epochs);
+    fd.append('review', base.review ? '1' : '0');
+    files.forEach(f=>fd.append('files', f));
+    r = await fetch('/api/train_upload', {method:'POST', body: fd});
+  } else if (dir){
+    base.dir = dir;
+    r = await fetch('/api/train_dir', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(base)});
+  } else {
+    r = await fetch('/api/train_json', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(base)});
+  }
+  const j = await r.json(); document.getElementById('msg').textContent = j.detail || j.message || '';
+  setTimeout(poll, 500);
+};
+document.getElementById('btnEnv').onclick = async ()=>{
+  const r = await fetch('/api/env'); const j = await r.json();
+  document.getElementById('env').textContent = JSON.stringify(j, null, 2);
+};
+document.getElementById('btnBase').onclick = async ()=>{
+  const r = await fetch('/api/download_base', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({engine: document.getElementById('engine').value})});
+  const j = await r.json(); document.getElementById('msg').textContent = j.detail || j.message || '';
+  setTimeout(poll, 800);
+};
+setInterval(poll, 2000);
+setInterval(pollQueue, 2000);
+setInterval(pollReview, 2000);
+poll(); pollQueue(); pollReview(); env();
+</script>
+</body>
+</html>

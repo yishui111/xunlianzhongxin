@@ -1,0 +1,121 @@
+# ===== 系统/编辑器 =====
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.idea/
+.vscode/
+*.user
+
+# ===== 通用密钥/敏感信息（无论放哪都忽略）=====
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_ed25519
+credentials.json
+*.secret
+.webui_secret_key
+token*
+*password*
+*credential*
+
+# ===== 日志/缓存/临时 =====
+logs/
+log/
+*.log
+cache/
+.cache/
+tmp/
+temp/
+*.tmp
+__pycache__/
+*.pyc
+
+# ===== Python =====
+venv/
+.venv/
+env/
+site-packages/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+wheels/
+
+# ===== Node/前端 =====
+node_modules/
+dist/
+build/
+.vite/
+
+# ===== 大件资源：模型/素材/数据集/产物/镜像 =====
+models/
+model_pad/
+checkpoints/
+weights/
+loras/
+素材/
+ziliao/
+验证产物/
+交付模型/
+*.tar
+*.tar.gz
+*.zip
+*.7z
+*.rar
+*.safetensors
+*.ckpt
+*.pth
+*.onnx
+*.gguf
+*.bin
+*.pt
+*.sft
+*.mp4
+*.avi
+*.mkv
+*.mov
+*.wav
+*.flac
+*.npy
+*.npz
+image.tar
+# 注意：若特意保留小型 UI 资源（图标/预览截图），用 ! 反忽略，如：
+# !预览图.png
+
+# ===== 第三方运行时/引擎（体积巨大，不随仓库分发）=====
+runtime/
+run/
+venv/
+webui/
+A1111_WebUI/
+gptsovits/
+rvc/
+openvoice_src/
+ffmpeg/
+cloudflared/
+ollama-image.tar
+open-webui-image.tar
+
+# ===== 备份 =====
+backup/
+*.bak
+*.bak_*
+
+# ===== 项目临时目录 =====
+.pnpm-store/
+.extract_tmp/
+_extract/
+_sessions/
+sessions/
+
+# ===== 训练中心：本地运行产物/数据目录（部署后本地使用，勿提交）=====
+output/
+work/
