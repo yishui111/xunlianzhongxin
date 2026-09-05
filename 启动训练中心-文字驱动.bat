@@ -1,10 +1,12 @@
 @echo off
 rem ============================================================
 rem  Train Center - text-driven mode (GPT-SoVITS / wen_zi)
-rem  Starts the training web service on port 8050.
+rem  Double-click to start: the web page opens in your browser
+rem  automatically (as soon as the service is ready) and all
+rem  service / training logs stream into this window.
+rem  Close this window (X) = stop the service and free GPU/RAM.
 rem  Self-contained layout: runtime\py312, runtime\ffmpeg,
 rem  gptsovits\GPT-SoVITS must already be in place (see DEPLOY.md).
-rem  Stop: run stop.bat.
 rem ============================================================
 setlocal
 set "ROOT=%~dp0"
@@ -12,6 +14,7 @@ if not defined TRAIN_MODE set "TRAIN_MODE=wen_zi"
 if not defined TRAIN_PORT set "TRAIN_PORT=8050"
 if not defined TRAIN_AUTO_EXIT set "TRAIN_AUTO_EXIT=1"
 set "PY=%ROOT%runtime\py312\python.exe"
+title Train Center (WenZi) port %TRAIN_PORT% - close this window to stop
 
 rem ---- refuse to start a second instance when port is already used ----
 powershell -NoProfile -Command "$c = Get-NetTCPConnection -LocalPort %TRAIN_PORT% -State Listen -ErrorAction SilentlyContinue; if ($c) { exit 0 } else { exit 1 }" >nul 2>&1
@@ -33,17 +36,22 @@ rem ---- put bundled ffmpeg on PATH ----
 set "PATH=%ROOT%runtime\ffmpeg\bin;%PATH%"
 
 echo ============================================
-echo   [WenziQudong Train Center] GPT-SoVITS TTS training
-echo   Web UI   : http://127.0.0.1:%TRAIN_PORT%/
-echo   Mode     : %TRAIN_MODE%  - GPT-SoVITS only
-echo   Auto-exit after training: %TRAIN_AUTO_EXIT%
-echo   Stop     : stop.bat
+echo   [WenZiQudong Train Center] GPT-SoVITS TTS training
+echo   Web UI : http://127.0.0.1:%TRAIN_PORT%/  (opens automatically when ready)
+echo   Mode   : %TRAIN_MODE%  - GPT-SoVITS only
+echo   Stop   : close this window (X) = service + GPU/RAM released
+echo            (or run stop.bat without closing this window)
+echo   Logs   : service + training logs stream below in real time
 echo ============================================
 
-rem ---- open the web page in the default browser once the service is up ----
-start "" /b powershell -NoProfile -Command "Start-Sleep -Seconds 3; Start-Process 'http://127.0.0.1:%TRAIN_PORT%/'" >nul 2>&1
+rem ---- open the web page once the health endpoint responds (max ~3 min wait) ----
+start "" /b powershell -NoProfile -Command "$u='http://127.0.0.1:%TRAIN_PORT%/api/health'; $ok=$false; for($i=0;$i -lt 120;$i++){try{Invoke-WebRequest -Uri $u -UseBasicParsing -TimeoutSec 1 | Out-Null; $ok=$true; break}catch{Start-Sleep -Milliseconds 500}}; if($ok){Start-Process 'http://127.0.0.1:%TRAIN_PORT%/'}" >nul 2>&1
 
 "%PY%" "%ROOT%train_service\train_api.py"
+
+echo.
+echo Service stopped (window closed, training finished, or auto-exit).
+echo You can close this window now.
 :END
 echo.
 pause
